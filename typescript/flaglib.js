@@ -49,6 +49,45 @@ export const ParseErrorKind = {
 };
 
 /**
+ * @param {ParseErrorKind} kind
+ * @param {string} arg
+ * @param {string|undefined} [morearg=undefined]
+ *
+ * @return {ParseError}
+ **/
+function errorFromKind(kind, arg, morearg) {
+  let message = "unknown error";
+  switch (kind) {
+    case ParseErrorKind.MISSING_REQUIRED:
+      message = `missing required flag - \`${arg}\``;
+      break;
+    case ParseErrorKind.NOT_A_NUMBER:
+      message = `the \`${arg}\` flag expects a numerical value`;
+      break;
+    case ParseErrorKind.NOT_ONE_OF:
+      message = `the \`${arg}\` flag expects one of: ${morearg}`;
+      break;
+    case ParseErrorKind.NOT_INVERTABLE:
+      message = `the \`${arg}\` flag cannot be inverted`;
+      break;
+    case ParseErrorKind.UNEXPECTED_ARG:
+      message = `the \`${arg}\` flag does not expect an argument`;
+      break;
+    case ParseErrorKind.MISSING_ARG:
+      message = `the \`${arg}\` flag expects an argument`;
+      break;
+    case ParseErrorKind.UNRECOGNIZED_FLAG:
+      message = `unrecognized flag - \`${arg}\``;
+      break;
+  }
+
+  return {
+    kind,
+    message,
+  };
+}
+
+/**
  * @enum {number} different possible types of CLI arguments
  **/
 const ArgType = {
@@ -100,29 +139,22 @@ function setFlagValue(flag, value, arg) {
     case "number":
       const number = Number(value);
       flag.current = number;
-      if (Number.isNaN(number)) {
-        return {
-          kind: ParseErrorKind.NOT_A_NUMBER,
-          message: `the \`${arg}\` flag expects a numerical value`,
-        };
-      }
+      if (Number.isNaN(number))
+        return errorFromKind(ParseErrorKind.NOT_A_NUMBER, arg);
+
       break;
     case "string":
       flag.current = value;
       if (flag.oneOf && !flag.oneOf.includes(value)) {
-        return {
-          kind: ParseErrorKind.NOT_ONE_OF,
-          message: `the \`${arg}\` flag expects one of: ${stringify(
-            flag.oneOf,
-          )}`,
-        };
+        return errorFromKind(
+          ParseErrorKind.NOT_ONE_OF,
+          arg,
+          stringify(flag.oneOf),
+        );
       }
       break;
     case "boolean":
-      return {
-        kind: ParseErrorKind.UNEXPECTED_ARG,
-        message: `the \`${arg}\` flag does not expect an argument`,
-      };
+      return errorFromKind(ParseErrorKind.UNEXPECTED_ARG, arg);
   }
 
   return null;
@@ -153,10 +185,10 @@ function parseShortFlag(arg, flags) {
     const validFlag = flags.find((flag) => flag.short === miniflag);
 
     if (!validFlag) {
-      error = setError(error, {
-        kind: ParseErrorKind.UNRECOGNIZED_FLAG,
-        message: `unrecognized flag - \`${miniflag}\``,
-      });
+      error = setError(
+        error,
+        errorFromKind(ParseErrorKind.UNRECOGNIZED_FLAG, miniflag),
+      );
     } else if (validFlag.type === "boolean") {
       validFlag.current = true;
     } else if (value) {
@@ -168,10 +200,7 @@ function parseShortFlag(arg, flags) {
     ) {
       validFlag.current = validFlag.argOptional;
     } else {
-      return {
-        kind: ParseErrorKind.MISSING_ARG,
-        message: `the \`${arg}\` flag expects an argument`,
-      };
+      return errorFromKind(ParseErrorKind.MISSING_ARG, arg);
     }
   }
 
@@ -205,18 +234,12 @@ function parseLongFlag(i, argv, flags) {
     const validFlag = flags.find((flag) => flag.long === argKey);
 
     if (!validFlag) {
-      return {
-        kind: ParseErrorKind.UNRECOGNIZED_FLAG,
-        message: `unrecognized flag - \`${argKey}\``,
-      };
+      return errorFromKind(ParseErrorKind.UNRECOGNIZED_FLAG, argKey);
     }
 
     const argValue = arg.slice(eqIndex + 1);
     if (!argValue) {
-      return {
-        kind: ParseErrorKind.MISSING_ARG,
-        message: `the \`${argKey}\` flag requires an argument`,
-      };
+      return errorFromKind(ParseErrorKind.MISSING_ARG, argKey);
     }
 
     return setFlagValue(validFlag, argValue, argKey) ?? i;
@@ -233,18 +256,12 @@ function parseLongFlag(i, argv, flags) {
   });
 
   if (!validFlag) {
-    return {
-      kind: ParseErrorKind.UNRECOGNIZED_FLAG,
-      message: `unrecognized flag - \`${arg}\``,
-    };
+    return errorFromKind(ParseErrorKind.UNRECOGNIZED_FLAG, arg);
   }
 
   if (inverted) {
     if (!validFlag.invertable) {
-      return {
-        kind: ParseErrorKind.NOT_INVERTABLE,
-        message: `the \`${validFlag.long}\` flag cannot be inverted`,
-      };
+      return errorFromKind(ParseErrorKind.NOT_INVERTABLE, validFlag.long);
     } else {
       switch (validFlag.type) {
         case "boolean":
@@ -272,10 +289,7 @@ function parseLongFlag(i, argv, flags) {
       return i;
     }
 
-    return {
-      kind: ParseErrorKind.MISSING_ARG,
-      message: `the \`${arg}\` flag requires an argument`,
-    };
+    return errorFromKind(ParseErrorKind.MISSING_ARG, arg);
   }
 
   return setFlagValue(validFlag, argValue, arg) ?? i;
@@ -326,10 +340,10 @@ function parse(argv, flags) {
 
     if (flag.current === null && flag.type !== "boolean") {
       if (flag.required) {
-        error = setError(error, {
-          kind: ParseErrorKind.MISSING_REQUIRED,
-          message: `missing required flag - \`${flag.long}\``,
-        });
+        error = setError(
+          error,
+          errorFromKind(ParseErrorKind.MISSING_REQUIRED, flag.long),
+        );
       } else if (flag.default !== undefined) {
         flag.current = flag.default;
       }
