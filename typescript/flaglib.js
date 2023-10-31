@@ -361,78 +361,64 @@ function stringify(value) {
 const INFO_FLAG_WIDTH = 26;
 
 /**
+ * @param {FlagPointer<unknown> | string} flag
+ * @param {string} prefix
+ **/
+function flagInfo(flag, prefix) {
+  const widthString = prefix + " ".repeat(INFO_FLAG_WIDTH);
+
+  const realFlag = /** @type {Flag} */ (flag);
+
+  if (typeof realFlag === "string") return `\n${realFlag}`;
+
+  const argOptional =
+    "argOptional" in realFlag && realFlag.argOptional !== undefined;
+
+  let line = `--${realFlag.long}`;
+
+  if (realFlag.short) {
+    line = `-${realFlag.short}, ${line}`;
+  }
+
+  if (realFlag.type !== "boolean") {
+    const argName = realFlag.argName ?? "arg";
+    line += argOptional ? `[=<${argName}>]` : ` <${argName}>`;
+  }
+
+  line +=
+    line.length >= INFO_FLAG_WIDTH - 1
+      ? `\n${widthString}`
+      : " ".repeat(INFO_FLAG_WIDTH - line.length);
+
+  line += realFlag.description;
+
+  if (realFlag.type === "string" && realFlag.oneOf) {
+    line += `\n${widthString}${argOptional ? "Optional m" : "M"}odes: `;
+    line += stringify(realFlag.oneOf);
+  }
+
+  if (realFlag.type !== "boolean" && (realFlag.default || argOptional)) {
+    line += ` (Default: ${
+      argOptional ? realFlag.argOptional : realFlag.default
+    })`;
+  }
+
+  return prefix + line;
+}
+
+/**
  * @param {(string | FlagPointer<unknown>)[]} flags
  * @param {{ prefix?: string | number; }} options
  *
  * @returns {string}
  **/
 function info(flags, options = { prefix: "" }) {
-  /** @type {string} */
-  let prefix;
-  switch (typeof options.prefix) {
-    case "number":
-      prefix = " ".repeat(options.prefix);
-      break;
-    case "undefined":
-      prefix = "";
-      break;
-    default:
-      prefix = options.prefix;
-      break;
-  }
+  const prefix =
+    typeof options?.prefix === "number"
+      ? " ".repeat(options.prefix)
+      : options?.prefix ?? "";
 
-  if (options.prefix === undefined) {
-    options.prefix = "";
-  }
-
-  const realFlags = /** @type {(Flag | string)[]} */ (flags);
-  return /** @type {string} */ (
-    realFlags.reduce((acc, cur) => {
-      if (typeof cur === "string") return acc + "\n" + cur + "\n";
-
-      let line = `--${cur.long}`;
-      if (cur.short) {
-        line = `-${cur.short}, ${line}`;
-      }
-
-      const argOptional = "argOptional" in cur && cur.argOptional !== undefined;
-      if (cur.type !== "boolean") {
-        let argName = `<${cur.argName}>`;
-        if (argOptional) {
-          argName = `[=${argName}]`;
-        } else {
-          argName = ` ${argName}`;
-        }
-
-        line += argName;
-      }
-
-      if (line.length >= INFO_FLAG_WIDTH - 1) {
-        line += "\n" + prefix + " ".repeat(INFO_FLAG_WIDTH);
-      } else {
-        line += " ".repeat(INFO_FLAG_WIDTH - line.length);
-      }
-
-      line += cur.description;
-
-      if (cur.type === "string" && cur.oneOf) {
-        let modes = `\n${prefix}${" ".repeat(INFO_FLAG_WIDTH)}`;
-        modes += argOptional ? "Optional m" : "M";
-        modes += `odes: ${stringify(cur.oneOf)}.`;
-        line += modes;
-      }
-
-      if (cur.type !== "boolean" && (cur.default || argOptional)) {
-        line += " (Default: ";
-        line += argOptional ? cur.argOptional : cur.default;
-        line += ")";
-      }
-
-      line += "\n";
-
-      return acc + prefix + line;
-    }, "")
-  );
+  return flags.map((flag) => flagInfo(flag, prefix)).join("\n");
 }
 
 /**
