@@ -4,7 +4,8 @@
  **/
 
 /**
- * @typedef {{ short?: string;
+ * @typedef {{
+ *    short?: string;
  *    invertable?: boolean;
  * }} SharedOptions
  * @typedef {SharedOptions & {
@@ -28,72 +29,16 @@
  * @typedef {{ type: "number"; current: number | null; } & SharedProperties & NumberOptions} NumberFlag
  * @typedef {{ type: "string"; current: string | null; } & SharedProperties & StringOptions} StringFlag
  * @typedef {BooleanFlag | NumberFlag | StringFlag} Flag
- **/
-
-/**
- * @param {string} long
- * @param {string} description
- * @param {BooleanOptions} options
  *
- * @returns {FlagPointer<boolean>}
+ * @typedef {{ message: string; kind: ParseErrorKind; }} ParseError
  **/
-function boolean(long, description, options = {}) {
-  /** @type {BooleanFlag} */
-  const flag = {
-    ...options,
-    long,
-    description,
-    type: "boolean",
-    current: null,
-  };
-
-  return /** @type {*} */ (flag);
-}
 
 /**
- * @param {string} long
- * @param {string} description
- * @param {StringOptions} options
+ * @enum {number} the possible error codes which can be returned from parsing flags
  *
- * @returns {FlagPointer<string>}
+ * The value of each key is used internally to determine the priority of the error.
  **/
-function string(long, description, options = {}) {
-  /** @type {StringFlag} */
-  const flag = {
-    ...options,
-    long,
-    description,
-    current: null,
-    type: "string",
-  };
-
-  return /** @type {*} */ (flag);
-}
-
-/**
- * @param {string} long
- * @param {string} description
- * @param {NumberOptions} options
- *
- * @returns {FlagPointer<number>}
- **/
-function number(long, description, options = {}) {
-  /** @type {NumberFlag} */
-  const flag = {
-    ...options,
-    long,
-    description,
-    current: null,
-    type: "number",
-  };
-
-  return /** @type {*} */ (flag);
-}
-
-/**
- * @enum {number}
- **/
-const ParseErrorKind = {
+export const ParseErrorKind = {
   MISSING_REQUIRED: 1,
   NOT_A_NUMBER: 2,
   NOT_ONE_OF: 3,
@@ -104,22 +49,32 @@ const ParseErrorKind = {
 };
 
 /**
- * @typedef {{ message: string; kind: ParseErrorKind; }} ParseError
- **/
-
-/**
- * @enum {number}
+ * @enum {number} different possible types of CLI arguments
  **/
 const ArgType = {
+  /**
+   * A long flag, beggining with `"--"`
+   **/
   FLAG_LONG: 0,
+  /**
+   * A short flag or bunching of short flags, beginning with `"-"`.
+   **/
   FLAG_SHORT: 1,
+  /**
+   * A positional argument.
+   **/
   POSITIONAL: 2,
+  /**
+   * A literal `"--"`, used to specify that everything from this point onwards is a positional argument.
+   **/
   FORCE_FLAG_END: 3,
 };
 
 /**
- * @param {string} arg
- * @param {boolean} forceEnd
+ * Check what type of argument a certain CLI arg is.
+ *
+ * @param {string} arg the CLI argument to parse
+ * @param {boolean} forceEnd whether a `"--"` has already been parsed
  *
  * @returns {ArgType}
  **/
@@ -132,6 +87,8 @@ function parseArgType(arg, forceEnd) {
 }
 
 /**
+ * Given a flag and the parsed value (either after a `=`, a "touching" value after a short flag, or the next argument), set that flag's value, checking for any errors.
+ *
  * @param {Flag} flag
  * @param {string} value
  * @param {string} arg
@@ -151,6 +108,7 @@ function setFlagValue(flag, value, arg) {
       }
       break;
     case "string":
+      flag.current = value;
       if (flag.oneOf && !flag.oneOf.includes(value)) {
         return {
           kind: ParseErrorKind.NOT_ONE_OF,
@@ -159,12 +117,10 @@ function setFlagValue(flag, value, arg) {
           )}`,
         };
       }
-
-      flag.current = value;
       break;
     case "boolean":
       return {
-        kind: 0,
+        kind: ParseErrorKind.UNEXPECTED_ARG,
         message: `the \`${arg}\` flag does not expect an argument`,
       };
   }
@@ -214,7 +170,7 @@ function parseShortFlag(arg, flags) {
     } else {
       return {
         kind: ParseErrorKind.MISSING_ARG,
-        message: `flag \`${arg}\` requires an argument`,
+        message: `the \`${arg}\` flag expects an argument`,
       };
     }
   }
@@ -259,7 +215,7 @@ function parseLongFlag(i, argv, flags) {
     if (!argValue) {
       return {
         kind: ParseErrorKind.MISSING_ARG,
-        message: `flag \`${argKey}\` requires an argument`,
+        message: `the \`${argKey}\` flag requires an argument`,
       };
     }
 
@@ -287,7 +243,7 @@ function parseLongFlag(i, argv, flags) {
     if (!validFlag.invertable) {
       return {
         kind: ParseErrorKind.NOT_INVERTABLE,
-        message: `flag \`${validFlag.long}\` cannot be inverted`,
+        message: `the \`${validFlag.long}\` flag cannot be inverted`,
       };
     } else {
       switch (validFlag.type) {
@@ -318,7 +274,7 @@ function parseLongFlag(i, argv, flags) {
 
     return {
       kind: ParseErrorKind.MISSING_ARG,
-      message: `flag \`${arg}\` requires an argument`,
+      message: `the \`${arg}\` flag requires an argument`,
     };
   }
 
@@ -477,6 +433,72 @@ function info(flags, options = { prefix: "" }) {
       return acc + prefix + line;
     }, "")
   );
+}
+
+/**
+ * Defines a boolean flag.
+ *
+ * @param {string} long the long form of the flag
+ * @param {string} description a short description of the flag's effect on the program
+ * @param {BooleanOptions} options additional options for configuring the flag's behavior
+ *
+ * @returns {FlagPointer<boolean>} a "pointer" to the parsed value which is populated by `flag.parse`
+ **/
+function boolean(long, description, options = {}) {
+  /** @type {BooleanFlag} */
+  const flag = {
+    ...options,
+    long,
+    description,
+    type: "boolean",
+    current: null,
+  };
+
+  return /** @type {*} */ (flag);
+}
+
+/**
+ * Defines a string flag.
+ *
+ * @param {string} long the long form of the flag
+ * @param {string} description a short description of the flag's effect on the program
+ * @param {StringOptions} options additional options for configuring the flag's behavior
+ *
+ * @returns {FlagPointer<string>} a "pointer" to the parsed value which is populated by `flag.parse`
+ **/
+function string(long, description, options = {}) {
+  /** @type {StringFlag} */
+  const flag = {
+    ...options,
+    long,
+    description,
+    current: null,
+    type: "string",
+  };
+
+  return /** @type {*} */ (flag);
+}
+
+/**
+ * Defines a number flag.
+ *
+ * @param {string} long the long form of the flag
+ * @param {string} description a short description of the flag's effect on the program
+ * @param {NumberOptions} options additional options for configuring the flag's behavior
+ *
+ * @returns {FlagPointer<number>} a "pointer" to the parsed value which is populated by `flag.parse`
+ **/
+function number(long, description, options = {}) {
+  /** @type {NumberFlag} */
+  const flag = {
+    ...options,
+    long,
+    description,
+    current: null,
+    type: "number",
+  };
+
+  return /** @type {*} */ (flag);
 }
 
 export const flag = {
