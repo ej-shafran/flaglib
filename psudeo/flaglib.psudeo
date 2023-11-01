@@ -1,0 +1,106 @@
+FUNCTION flag.boolean
+ACCEPTS long
+ACCEPTS description
+ACCEPTS options
+  RETURN a boolean flag
+ENDFUNCTION
+
+FUNCTION flag.string
+ACCEPTS long
+ACCEPTS description
+ACCEPTS options
+  RETURN a string flag
+ENDFUNCTION
+
+FUNCTION flag.number
+ACCEPTS long
+ACCEPTS description
+ACCEPTS options
+  RETURN a number flag
+ENDFUNCTION
+
+FUNCTION flag.stringify
+  # TODO
+ENDFUNCTION
+
+CONSTANT INFO_FLAG_WIDTH = 26
+CONSTANT WIDTH_STRING = INFO_FLAG_WIDTH spaces in a row
+
+FUNCTION flag.flag-info
+ACCEPTS flag
+ACCEPTS prefix
+  IF flag is a String THEN
+    RETURN flag prefixed with '\n'
+  ENDIF
+
+  arg-optional := whether flag.type is String and flag.arg-optional is set
+  line := "--"
+  line := line concatenated with flag.long
+  IF flag.short is not Nil THEN
+    line := "-" concatenated with flag.short, ", " and line
+  ENDIF
+
+  IF flag.type is not Boolean THEN
+    arg-name := flag.arg-name defaulted to "arg"
+    IF arg-optional THEN
+      line := line concatenated with "[=<", arg-name and ">]"
+    ELSE
+      line := line concatenated with "<", arg-name and ">"
+    ENDIF
+  ENDIF
+
+  IF the length of line is greater than INFO_FLAG_WIDTH - 2 THEN
+    line := line concatenated with "\n" and WIDTH_STRING
+  ELSE
+    line := line concatenated with INFO_FLAG_WIDTH - length of line spaces in a row
+  ENDIF
+
+  line := line concatenated with flag.description
+
+  IF flag.type is String AND flag.one-of is not Nil THEN
+    line := line concatenated with "\n", WIDTH_STRING
+    IF arg-optional THEN
+      line := line concatenated with "Optional m"
+    ELSE
+      line := line concatenated with "M"
+    ENDIF
+    line := line concatenated with "odes: ", CALL flag.stringify WITH flag.one-of
+  ENDIF
+
+  IF flag.type is not Boolean AND flag.default is not Nil OR arg-optional THEN
+    line := line concatenated with " (Default: "
+    IF arg-optional THEN
+      line := line concatenated with flag.arg-optional
+    ELSE
+      line := line concatenated with flag.default
+    ENDIF
+    line := line concatenated with ")"
+  ENDIF
+
+  RETURN prefix concatenated with line
+ENDFUNCTION
+
+FUNCTION flag.info
+  # TODO
+ENDFUNCTION
+
+ENUMERATION error-kind
+  MISSING_REQUIRED = 1
+  NOT_A_NUMBER = 2
+  NOT_ONE_OF = 3
+  NOT_INVERTABLE = 4
+  UNEXPECTED_ARG = 5
+  MISSING_ARG = 6
+  UNRECOGNIZED_FLAG = 7
+ENDENUMERATION
+
+ENUMERATION parsed-arg
+  FLAG_LONG
+  FLAG_SHORT
+  POSITIONAL
+  FORCE_PARSE_END
+ENDENUMERATION
+
+FUNCTION flag.parse
+  # TODO
+ENDFUNCTION

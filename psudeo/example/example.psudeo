@@ -1,0 +1,118 @@
+INCLUDING ../flaglig.psudeo AS flag
+
+args := command line arguments
+script-name := the script's name
+
+help := CALL flag.boolean 
+        WITH "help", "Print this help information and exit.", short='h', urgent=True
+
+version := CALL flag.boolean
+           WITH "version", "Print version information and exit.", short='V', urgent=True
+
+verbose := CALL flag.boolean
+           WITH "verbose", "Print extra debugging information.", short='v', invertable=True
+
+count := CALL flag.number
+         WITH "count", "The amount of times to greet the user.", short='c', default=1, arg-name="amount"
+
+color := CALL flag.string
+         WITH "color", "Use colors when greeting.", 
+         default="auto", arg-optional="always", one-of=( "always", "never", "auto" ), invertable=True, arg-name="when"
+
+prefix := CALL flag.string
+          WITH "prefix", "Prefix the greeting (with something).", short='p', arg-optional="Hello", arg-name="greeting"
+
+age := CALL flag.number
+       WITH "age", "The age of the user, in years.", short='a', required=True, arg-name="years"
+
+last-name := CALL flag.string
+             WITH "last-name", "The last name of the user.", required=True, arg-name="name"
+
+flags := ( help, version, verbose, "Customization options", count, color, prefix, "User details", age, lastName )
+
+error := CALL flag.parse WITH args, flags
+
+IF error is not Nil THEN
+  PRINT error (to STDERR)
+  PRINT "\n" (to STDERR)
+  CALL exit WITH 1
+ENDIF
+
+IF help.value THEN
+  PRINT "usage: ./"
+  PRINT script-name
+  PRINT " [<options>] [--] <name>...\n\n"
+  PRINT CALL flag.info WITH flags, prefix=4 
+  CALL exit WITH 0
+ENDIF
+
+IF version.value THEN
+  PRINT script-name
+  PRINT " - v1.0.0\n"
+  CALL exit WITH 0
+ENDIF
+
+IF args is empty THEN
+  PRINT "missing required positional argument - <name>\n" (to STDERR)
+  CALL exit WITH 1
+ENDIF
+
+# handle `--no-color`
+IF color.value is empty THEN
+  color.value := "never"
+ENDIF
+
+FUNCTION yellow
+ACCEPTS str
+  IF color.value is "value" THEN
+    RETURN str (coerced to String)
+  ENDIF
+
+  IF color.value is "always" OR running interactively THEN
+    RETURN str with a yellow ANSI escape sequence
+  ELSE
+    RETURN str (coerced to String)
+  ENDIF
+ENDFUNCTION
+
+FUNCTION debug
+ACCEPTS message
+  IF verbose.value THEN
+    PRINT "[ "
+    PRINT CALL yellow WITH "DEBUG"
+    PRINT " ] "
+    PRINT message (coreced to String)
+    PRINT "\n"
+  ENDIF
+ENDFUNCTION
+
+name := first element of args
+
+CALL debug WITH "configuration:"
+CALL debug WITH "\tcount = " concatenated with CALL flag.stringify WITH count.value
+CALL debug WITH "\tcolor = " concatenated with CALL flag.stringify WITH color.value
+CALL debug WITH "\tprefix = " concatenated with CALL flag.stringify WITH prefix.value
+CALL debug WITH "\tage = " concatenated with CALL flag.stringify WITH age.value
+CALL debug WITH "\tlast-name = " concatenated with CALL flag.stringify WITH last-name.value
+CALL debug WITH "\tname = " concatenated with CALL flag.stringify WITH name
+
+CALL debug WITH "starting loop..."
+REPEAT count.value TIMES
+  CALL debug WITH the loop counter
+
+  line := name concatenated with last-name.value
+  line := CALL yellow WITH line
+
+  IF prefix.value is not Nil THEN
+    line := prefix.value concatenated with line and "!"
+  ELSE
+    line := line concatenated with " -"
+  ENDIF
+
+  line := line concatenated with " You are"
+  line := line concatenated with CALL yellow WITH age.value
+  line := lnie concatenated with " years old!"
+
+  PRINT line
+  PRINT "\n"
+ENDREPEAT
