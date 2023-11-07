@@ -29,8 +29,6 @@
  * @typedef {{ type: "number"; current: number | null; } & SharedProperties & NumberOptions} NumberFlag
  * @typedef {{ type: "string"; current: string | null; } & SharedProperties & StringOptions} StringFlag
  * @typedef {BooleanFlag | NumberFlag | StringFlag} Flag
- *
- * @typedef {{ message: string; kind: ErrorKind; }} ParseError
  **/
 
 /**
@@ -54,7 +52,7 @@ class ParserError {
    * @param {string} arg
    * @param {string|undefined} morearg
    **/
-  constructor(kind, arg, morearg) {
+  constructor(kind, arg, morearg = undefined) {
     this.kind = kind;
 
     switch (this.kind) {
@@ -113,7 +111,7 @@ const ArgType = {
  *
  * @returns {ArgType}
  **/
-function parseArgType(arg, forceEnd) {
+function parseArgType(arg, forceEnd = false) {
   if (forceEnd) return ArgType.POSITIONAL;
   if (arg === "--") return ArgType.FORCE_FLAG_END;
   if (arg.startsWith("--")) return ArgType.FLAG_LONG;
@@ -128,7 +126,7 @@ function parseArgType(arg, forceEnd) {
  * @param {string} value
  * @param {string} arg
  *
- * @returns {ParseError | null}
+ * @returns {ParserError | null}
  **/
 function setFlagValue(flag, value, arg) {
   switch (flag.type) {
@@ -141,11 +139,8 @@ function setFlagValue(flag, value, arg) {
     case "string":
       flag.current = value;
       if (flag.oneOf && !flag.oneOf.includes(value)) {
-        return new ParserError(
-          ErrorKind.NOT_ONE_OF,
-          arg,
-          stringify(flag.oneOf),
-        );
+        const options = stringify(flag.oneOf);
+        return new ParserError(ErrorKind.NOT_ONE_OF, arg, options);
       }
       break;
     case "boolean":
@@ -156,8 +151,8 @@ function setFlagValue(flag, value, arg) {
 }
 
 /**
- * @param {ParseError | null} error
- * @param {ParseError | null} newError
+ * @param {ParserError | null} error
+ * @param {ParserError | null} newError
  **/
 function setError(error, newError) {
   if (newError === null) return error;
@@ -174,7 +169,7 @@ function setError(error, newError) {
 function parseShortFlag(argPos, args, flags) {
   const arg = args[argPos].slice(1);
 
-  let error = /** @type {ParseError | null} */ (null);
+  let error = /** @type {ParserError | null} */ (null);
 
   for (let i = 0; i < arg.length; i++) {
     const miniflag = arg[i];
@@ -227,7 +222,7 @@ function isInverted(flagLong, arg) {
  * @param {string[]} argv
  * @param {Flag[]} flags
  *
- * @returns {ParseError | number}
+ * @returns {ParserError | number}
  **/
 function parseLongFlag(i, argv, flags) {
   const arg = argv[i].slice(2); // remove "--"
@@ -287,7 +282,7 @@ function parseLongFlag(i, argv, flags) {
   }
 
   const argValue = argv[++i];
-  if (!argValue || parseArgType(argValue, false) !== ArgType.POSITIONAL) {
+  if (!argValue || parseArgType(argValue) !== ArgType.POSITIONAL) {
     if (validFlag.type === "string" && validFlag.argOptional !== undefined) {
       validFlag.current = validFlag.argOptional;
       return i;
@@ -308,7 +303,7 @@ function parse(argv, flags) {
     flags.filter((flag) => typeof flag !== "string")
   );
 
-  let error = /** @type {ParseError | null} */ (null);
+  let error = /** @type {ParserError | null} */ (null);
   let forceFlagEnd = false;
   /** @type {string[]} */
   const restArgv = [];
