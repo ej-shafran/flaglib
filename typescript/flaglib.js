@@ -48,36 +48,38 @@ export const ErrorKind = {
   UNRECOGNIZED_FLAG: 7,
 };
 
-/**
- * @param {ErrorKind} kind
- * @param {string} arg
- * @param {string|undefined} [morearg=undefined]
- **/
-function ParserError(kind, arg, morearg) {
-  this.kind = kind;
+class ParserError {
+  /**
+   * @param {ErrorKind} kind
+   * @param {string} arg
+   * @param {string|undefined} morearg
+   **/
+  constructor(kind, arg, morearg) {
+    this.kind = kind;
 
-  switch (this.kind) {
-    case ErrorKind.MISSING_REQUIRED:
-      this.message = `missing required flag - \`${arg}\``;
-      break;
-    case ErrorKind.NOT_A_NUMBER:
-      this.message = `the \`${arg}\` flag expects a numerical value`;
-      break;
-    case ErrorKind.NOT_ONE_OF:
-      this.message = `the \`${arg}\` flag expects one of: ${morearg}`;
-      break;
-    case ErrorKind.NOT_INVERTABLE:
-      this.message = `the \`${arg}\` flag cannot be inverted`;
-      break;
-    case ErrorKind.UNEXPECTED_ARG:
-      this.message = `the \`${arg}\` flag does not expect an argument`;
-      break;
-    case ErrorKind.MISSING_ARG:
-      this.message = `the \`${arg}\` flag expects an argument`;
-      break;
-    case ErrorKind.UNRECOGNIZED_FLAG:
-      this.message = `unrecognized flag - \`${arg}\``;
-      break;
+    switch (this.kind) {
+      case ErrorKind.MISSING_REQUIRED:
+        this.message = `missing required flag - \`${arg}\``;
+        break;
+      case ErrorKind.NOT_A_NUMBER:
+        this.message = `the \`${arg}\` flag expects a numerical value`;
+        break;
+      case ErrorKind.NOT_ONE_OF:
+        this.message = `the \`${arg}\` flag expects one of: ${morearg}`;
+        break;
+      case ErrorKind.NOT_INVERTABLE:
+        this.message = `the \`${arg}\` flag cannot be inverted`;
+        break;
+      case ErrorKind.UNEXPECTED_ARG:
+        this.message = `the \`${arg}\` flag does not expect an argument`;
+        break;
+      case ErrorKind.MISSING_ARG:
+        this.message = `the \`${arg}\` flag expects an argument`;
+        break;
+      case ErrorKind.UNRECOGNIZED_FLAG:
+        this.message = `unrecognized flag - \`${arg}\``;
+        break;
+    }
   }
 }
 
