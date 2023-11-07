@@ -52,39 +52,33 @@ export const ErrorKind = {
  * @param {ErrorKind} kind
  * @param {string} arg
  * @param {string|undefined} [morearg=undefined]
- *
- * @return {ParseError}
  **/
 function ParserError(kind, arg, morearg) {
-  let message = "unknown error";
-  switch (kind) {
+  this.kind = kind;
+
+  switch (this.kind) {
     case ErrorKind.MISSING_REQUIRED:
-      message = `missing required flag - \`${arg}\``;
+      this.message = `missing required flag - \`${arg}\``;
       break;
     case ErrorKind.NOT_A_NUMBER:
-      message = `the \`${arg}\` flag expects a numerical value`;
+      this.message = `the \`${arg}\` flag expects a numerical value`;
       break;
     case ErrorKind.NOT_ONE_OF:
-      message = `the \`${arg}\` flag expects one of: ${morearg}`;
+      this.message = `the \`${arg}\` flag expects one of: ${morearg}`;
       break;
     case ErrorKind.NOT_INVERTABLE:
-      message = `the \`${arg}\` flag cannot be inverted`;
+      this.message = `the \`${arg}\` flag cannot be inverted`;
       break;
     case ErrorKind.UNEXPECTED_ARG:
-      message = `the \`${arg}\` flag does not expect an argument`;
+      this.message = `the \`${arg}\` flag does not expect an argument`;
       break;
     case ErrorKind.MISSING_ARG:
-      message = `the \`${arg}\` flag expects an argument`;
+      this.message = `the \`${arg}\` flag expects an argument`;
       break;
     case ErrorKind.UNRECOGNIZED_FLAG:
-      message = `unrecognized flag - \`${arg}\``;
+      this.message = `unrecognized flag - \`${arg}\``;
       break;
   }
-
-  return {
-    kind,
-    message,
-  };
 }
 
 /**
@@ -139,16 +133,21 @@ function setFlagValue(flag, value, arg) {
     case "number":
       const number = Number(value);
       flag.current = number;
-      if (Number.isNaN(number)) return ParserError(ErrorKind.NOT_A_NUMBER, arg);
+      if (Number.isNaN(number))
+        return new ParserError(ErrorKind.NOT_A_NUMBER, arg);
       break;
     case "string":
       flag.current = value;
       if (flag.oneOf && !flag.oneOf.includes(value)) {
-        return ParserError(ErrorKind.NOT_ONE_OF, arg, stringify(flag.oneOf));
+        return new ParserError(
+          ErrorKind.NOT_ONE_OF,
+          arg,
+          stringify(flag.oneOf),
+        );
       }
       break;
     case "boolean":
-      return ParserError(ErrorKind.UNEXPECTED_ARG, arg);
+      return new ParserError(ErrorKind.UNEXPECTED_ARG, arg);
   }
 
   return null;
@@ -181,7 +180,7 @@ function parseShortFlag(arg, flags) {
     if (!validFlag) {
       error = setError(
         error,
-        ParserError(ErrorKind.UNRECOGNIZED_FLAG, miniflag),
+        new ParserError(ErrorKind.UNRECOGNIZED_FLAG, miniflag),
       );
     } else if (validFlag.type === "boolean") {
       validFlag.current = true;
@@ -194,7 +193,7 @@ function parseShortFlag(arg, flags) {
     ) {
       validFlag.current = validFlag.argOptional;
     } else {
-      return ParserError(ErrorKind.MISSING_ARG, arg);
+      return new ParserError(ErrorKind.MISSING_ARG, arg);
     }
   }
 
@@ -228,12 +227,12 @@ function parseLongFlag(i, argv, flags) {
     const validFlag = flags.find((flag) => flag.long === argKey);
 
     if (!validFlag) {
-      return ParserError(ErrorKind.UNRECOGNIZED_FLAG, argKey);
+      return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, argKey);
     }
 
     const argValue = arg.slice(eqIndex + 1);
     if (!argValue) {
-      return ParserError(ErrorKind.MISSING_ARG, argKey);
+      return new ParserError(ErrorKind.MISSING_ARG, argKey);
     }
 
     return setFlagValue(validFlag, argValue, argKey) ?? i;
@@ -250,12 +249,12 @@ function parseLongFlag(i, argv, flags) {
   });
 
   if (!validFlag) {
-    return ParserError(ErrorKind.UNRECOGNIZED_FLAG, arg);
+    return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, arg);
   }
 
   if (inverted) {
     if (!validFlag.invertable) {
-      return ParserError(ErrorKind.NOT_INVERTABLE, validFlag.long);
+      return new ParserError(ErrorKind.NOT_INVERTABLE, validFlag.long);
     } else {
       switch (validFlag.type) {
         case "boolean":
@@ -283,7 +282,7 @@ function parseLongFlag(i, argv, flags) {
       return i;
     }
 
-    return ParserError(ErrorKind.MISSING_ARG, arg);
+    return new ParserError(ErrorKind.MISSING_ARG, arg);
   }
 
   return setFlagValue(validFlag, argValue, arg) ?? i;
@@ -336,7 +335,7 @@ function parse(argv, flags) {
       if (flag.required) {
         error = setError(
           error,
-          ParserError(ErrorKind.MISSING_REQUIRED, flag.long),
+          new ParserError(ErrorKind.MISSING_REQUIRED, flag.long),
         );
       } else if (flag.default !== undefined) {
         flag.current = flag.default;
