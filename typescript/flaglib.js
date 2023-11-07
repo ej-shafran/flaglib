@@ -167,10 +167,13 @@ function setError(error, newError) {
 }
 
 /**
- * @param {string} arg
+ * @param {number} argPos
+ * @param {string[]} args
  * @param {Flag[]} flags
  **/
-function parseShortFlag(arg, flags) {
+function parseShortFlag(argPos, args, flags) {
+  const arg = args[argPos].slice(1);
+
   let error = /** @type {ParseError | null} */ (null);
 
   for (let i = 0; i < arg.length; i++) {
@@ -194,12 +197,18 @@ function parseShortFlag(arg, flags) {
       validFlag.argOptional !== undefined
     ) {
       validFlag.current = validFlag.argOptional;
+    } else if (
+      args[argPos + 1] &&
+      parseArgType(args[argPos + 1]) === ArgType.POSITIONAL
+    ) {
+      const newError = setFlagValue(validFlag, args[argPos + 1], miniflag);
+      return setError(error, newError) ?? argPos + 1;
     } else {
       return new ParserError(ErrorKind.MISSING_ARG, arg);
     }
   }
 
-  return error;
+  return error ?? argPos;
 }
 
 /**
@@ -314,8 +323,12 @@ function parse(argv, flags) {
         restArgv.push(arg);
         break;
       case ArgType.FLAG_SHORT:
-        const shortFlagError = parseShortFlag(arg.slice(1), realFlags);
-        error = setError(error, shortFlagError);
+        const shortFlagError = parseShortFlag(i, argv, realFlags);
+        if (typeof shortFlagError === "number") {
+          i = shortFlagError;
+        } else {
+          error = setError(error, shortFlagError);
+        }
         break;
       case ArgType.FLAG_LONG:
         const longFlagError = parseLongFlag(i, argv, realFlags);
