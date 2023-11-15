@@ -165,45 +165,41 @@ function setError(error, newError) {
  * @param {number} argPos
  * @param {string[]} args
  * @param {Flag[]} flags
+ *
+ * @returns {ParserError|number} either an error parsing the short-flag bunch, or the index in the arguments to end up at
  **/
 function parseShortFlag(argPos, args, flags) {
   const arg = args[argPos].slice(1);
 
-  let error = /** @type {ParserError | null} */ (null);
-
   for (let i = 0; i < arg.length; i++) {
-    const miniflag = arg[i];
-    const value = arg.slice(i + 1);
+    const shortFlag = arg[i];
+    const validFlag = flags.find((flag) => flag.short === shortFlag);
 
-    const validFlag = flags.find((flag) => flag.short === miniflag);
+    if (!validFlag)
+      return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, shortFlag);
 
-    if (!validFlag) {
-      error = setError(
-        error,
-        new ParserError(ErrorKind.UNRECOGNIZED_FLAG, miniflag),
-      );
-    } else if (validFlag.type === "boolean") {
+    if (validFlag.type === "boolean") {
       validFlag.current = true;
-    } else if (value) {
-      const newError = setFlagValue(validFlag, value, miniflag);
-      return setError(error, newError);
-    } else if (
-      validFlag.type === "string" &&
-      validFlag.argOptional !== undefined
-    ) {
-      validFlag.current = validFlag.argOptional;
-    } else if (
-      args[argPos + 1] &&
-      parseArgType(args[argPos + 1]) === ArgType.POSITIONAL
-    ) {
-      const newError = setFlagValue(validFlag, args[argPos + 1], miniflag);
-      return setError(error, newError) ?? argPos + 1;
-    } else {
-      return new ParserError(ErrorKind.MISSING_ARG, arg);
+      continue;
     }
+
+    const bunchValue = arg.slice(i + 1);
+    if (bunchValue)
+      return setFlagValue(validFlag, bunchValue, shortFlag) ?? argPos;
+
+    const argValue = args[argPos + 1];
+    if (argValue && parseArgType(argValue) === ArgType.POSITIONAL)
+      return setFlagValue(validFlag, bunchValue, shortFlag) ?? argPos + 1;
+
+    if (validFlag.type === "string" && validFlag.argOptional !== undefined) {
+      validFlag.current = validFlag.argOptional;
+      return argPos;
+    }
+
+    return new ParserError(ErrorKind.MISSING_ARG, arg);
   }
 
-  return error ?? argPos;
+  return argPos;
 }
 
 /**
@@ -218,30 +214,25 @@ function isInverted(flagLong, arg) {
 }
 
 /**
- * @param {number} i
+ * @param {number} argPos
  * @param {string[]} argv
  * @param {Flag[]} flags
  *
  * @returns {ParserError | number}
  **/
-function parseLongFlag(i, argv, flags) {
-  const arg = argv[i].slice(2); // remove "--"
+function parseLongFlag(argPos, argv, flags) {
+  const arg = argv[argPos].slice(2); // remove "--"
 
   const eqIndex = arg.indexOf("=");
   if (eqIndex >= 0) {
     const argKey = arg.slice(0, eqIndex);
     const validFlag = flags.find((flag) => flag.long === argKey);
-
-    if (!validFlag) {
-      return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, argKey);
-    }
+    if (!validFlag) return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, argKey);
 
     const argValue = arg.slice(eqIndex + 1);
-    if (!argValue) {
-      return new ParserError(ErrorKind.MISSING_ARG, argKey);
-    }
+    if (!argValue) return new ParserError(ErrorKind.MISSING_ARG, argKey);
 
-    return setFlagValue(validFlag, argValue, argKey) ?? i;
+    return setFlagValue(validFlag, argValue, argKey) ?? argPos;
   }
 
   let inverted = false;
@@ -271,27 +262,28 @@ function parseLongFlag(i, argv, flags) {
           break;
         case "number":
           validFlag.current = 0;
+          break;
       }
-      return i;
+      return argPos;
     }
   }
 
   if (validFlag.type === "boolean") {
     validFlag.current = true;
-    return i;
+    return argPos;
   }
 
-  const argValue = argv[++i];
+  const argValue = argv[++argPos];
   if (!argValue || parseArgType(argValue) !== ArgType.POSITIONAL) {
     if (validFlag.type === "string" && validFlag.argOptional !== undefined) {
       validFlag.current = validFlag.argOptional;
-      return i;
+      return argPos;
     }
 
     return new ParserError(ErrorKind.MISSING_ARG, arg);
   }
 
-  return setFlagValue(validFlag, argValue, arg) ?? i;
+  return setFlagValue(validFlag, argValue, arg) ?? argPos;
 }
 
 /**
@@ -337,9 +329,7 @@ function parse(argv, flags) {
   }
 
   for (const flag of realFlags) {
-    if ("urgent" in flag && flag.urgent && flag.current) {
-      return null;
-    }
+    if ("urgent" in flag && flag.urgent && flag.current) return null;
 
     if (flag.current === null && flag.type !== "boolean") {
       if (flag.required) {
@@ -365,11 +355,7 @@ function parse(argv, flags) {
  **/
 function stringify(value) {
   if (value === null) return "N/A";
-
-  if (Array.isArray(value)) {
-    return value.map(stringify).join(", ");
-  }
-
+  if (Array.isArray(value)) return value.map(stringify).join(", ");
   if (typeof value !== "string") return String(value);
   if (value.match(/\s/)) return `"${value}"`;
   return value;
