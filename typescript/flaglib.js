@@ -85,21 +85,13 @@ class ParserError {
  * @enum {number} different possible types of CLI arguments
  **/
 const ArgType = {
-  /**
-   * A long flag, beggining with `"--"`
-   **/
+  // A long flag, beggining with `"--"`
   FLAG_LONG: 0,
-  /**
-   * A short flag or bunching of short flags, beginning with `"-"`.
-   **/
+  // A short flag or bunching of short flags, beginning with `"-"`.
   FLAG_SHORT: 1,
-  /**
-   * A positional argument.
-   **/
+  // A positional argument.
   POSITIONAL: 2,
-  /**
-   * A literal `"--"`, used to specify that everything from this point onwards is a positional argument.
-   **/
+  // A literal `"--"`, used to specify that everything from this point onwards is a positional argument.
   FORCE_FLAG_END: 3,
 };
 
@@ -157,7 +149,6 @@ function setFlagValue(flag, value, arg) {
 function setError(error, newError) {
   if (newError === null) return error;
   if (error === null) return newError;
-
   return newError.kind > error.kind ? newError : error;
 }
 
@@ -245,27 +236,24 @@ function parseLongFlag(argPos, argv, flags) {
     return flag.long === arg;
   });
 
-  if (!validFlag) {
-    return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, arg);
-  }
+  if (!validFlag) return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, arg);
 
   if (inverted) {
-    if (!validFlag.invertable) {
+    if (!validFlag.invertable)
       return new ParserError(ErrorKind.NOT_INVERTABLE, validFlag.long);
-    } else {
-      switch (validFlag.type) {
-        case "boolean":
-          validFlag.value = false;
-          break;
-        case "string":
-          validFlag.value = "";
-          break;
-        case "number":
-          validFlag.value = 0;
-          break;
-      }
-      return argPos;
+
+    switch (validFlag.type) {
+      case "boolean":
+        validFlag.value = false;
+        break;
+      case "string":
+        validFlag.value = "";
+        break;
+      case "number":
+        validFlag.value = 0;
+        break;
     }
+    return argPos;
   }
 
   if (validFlag.type === "boolean") {
@@ -350,12 +338,42 @@ function parse(argv, flags) {
 }
 
 /**
+ * @param {object} data
+ *
+ * @returns {data is Flag}
+ **/
+function isFlag(data) {
+  return (
+    "value" in data &&
+    ["string", "boolean", "number"].includes(/** @type {*} */ (data).type)
+  );
+}
+
+/**
  * @param {unknown} value
+ * @param {number|string|undefined} padding
  * @returns {string}
  **/
-function stringify(value) {
+function stringify(value, padding = undefined) {
   if (value === null) return "N/A";
   if (Array.isArray(value)) return value.map(stringify).join(", ");
+  if (typeof value === "object") {
+    if (isFlag(value)) return stringify(value.value);
+
+    let pad = " ";
+    if (typeof padding === "number") {
+      pad = " ".repeat(padding);
+    } else if (typeof padding === "string") {
+      pad = padding;
+    }
+
+    return (
+      (padding !== undefined ? "\n" : "") +
+      Object.entries(value)
+        .map(([key, value]) => `${pad}${stringify(key)} = ${stringify(value)}`)
+        .join(padding !== undefined ? "\n" : ", ")
+    );
+  }
   if (typeof value !== "string") return String(value);
   if (value.match(/\s/)) return `"${value}"`;
   return value;
@@ -371,7 +389,6 @@ function flagInfo(flag, prefix) {
   const widthString = prefix + " ".repeat(INFO_FLAG_WIDTH);
 
   const realFlag = /** @type {Flag} */ (flag);
-
   if (typeof realFlag === "string") return `\n${realFlag}`;
 
   const argOptional =
@@ -379,9 +396,7 @@ function flagInfo(flag, prefix) {
 
   let line = `--${realFlag.long}`;
 
-  if (realFlag.short) {
-    line = `-${realFlag.short}, ${line}`;
-  }
+  if (realFlag.short) line = `-${realFlag.short}, ${line}`;
 
   if (realFlag.type !== "boolean") {
     const argName = realFlag.argName ?? "arg";
