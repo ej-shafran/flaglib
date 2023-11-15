@@ -1,6 +1,6 @@
 /**
  * @template T
- * @typedef {{ current: T; }} FlagPointer
+ * @typedef {{ value: T; }} FlagPointer
  **/
 
 /**
@@ -25,9 +25,9 @@
  * }} StringOptions
  *
  * @typedef {{ long: string; description: string; }} SharedProperties
- * @typedef {{ type: "boolean"; current: boolean | null; } & SharedProperties & BooleanOptions} BooleanFlag
- * @typedef {{ type: "number"; current: number | null; } & SharedProperties & NumberOptions} NumberFlag
- * @typedef {{ type: "string"; current: string | null; } & SharedProperties & StringOptions} StringFlag
+ * @typedef {{ type: "boolean"; value: boolean | null; } & SharedProperties & BooleanOptions} BooleanFlag
+ * @typedef {{ type: "number"; value: number | null; } & SharedProperties & NumberOptions} NumberFlag
+ * @typedef {{ type: "string"; value: string | null; } & SharedProperties & StringOptions} StringFlag
  * @typedef {BooleanFlag | NumberFlag | StringFlag} Flag
  **/
 
@@ -132,12 +132,12 @@ function setFlagValue(flag, value, arg) {
   switch (flag.type) {
     case "number":
       const number = Number(value);
-      flag.current = number;
+      flag.value = number;
       if (Number.isNaN(number))
         return new ParserError(ErrorKind.NOT_A_NUMBER, arg);
       break;
     case "string":
-      flag.current = value;
+      flag.value = value;
       if (flag.oneOf && !flag.oneOf.includes(value)) {
         const options = stringify(flag.oneOf);
         return new ParserError(ErrorKind.NOT_ONE_OF, arg, options);
@@ -179,7 +179,7 @@ function parseShortFlag(argPos, args, flags) {
       return new ParserError(ErrorKind.UNRECOGNIZED_FLAG, shortFlag);
 
     if (validFlag.type === "boolean") {
-      validFlag.current = true;
+      validFlag.value = true;
       continue;
     }
 
@@ -192,7 +192,7 @@ function parseShortFlag(argPos, args, flags) {
       return setFlagValue(validFlag, bunchValue, shortFlag) ?? argPos + 1;
 
     if (validFlag.type === "string" && validFlag.argOptional !== undefined) {
-      validFlag.current = validFlag.argOptional;
+      validFlag.value = validFlag.argOptional;
       return argPos;
     }
 
@@ -255,13 +255,13 @@ function parseLongFlag(argPos, argv, flags) {
     } else {
       switch (validFlag.type) {
         case "boolean":
-          validFlag.current = false;
+          validFlag.value = false;
           break;
         case "string":
-          validFlag.current = "";
+          validFlag.value = "";
           break;
         case "number":
-          validFlag.current = 0;
+          validFlag.value = 0;
           break;
       }
       return argPos;
@@ -269,14 +269,14 @@ function parseLongFlag(argPos, argv, flags) {
   }
 
   if (validFlag.type === "boolean") {
-    validFlag.current = true;
+    validFlag.value = true;
     return argPos;
   }
 
   const argValue = argv[++argPos];
   if (!argValue || parseArgType(argValue) !== ArgType.POSITIONAL) {
     if (validFlag.type === "string" && validFlag.argOptional !== undefined) {
-      validFlag.current = validFlag.argOptional;
+      validFlag.value = validFlag.argOptional;
       return argPos;
     }
 
@@ -329,16 +329,16 @@ function parse(argv, flags) {
   }
 
   for (const flag of realFlags) {
-    if ("urgent" in flag && flag.urgent && flag.current) return null;
+    if ("urgent" in flag && flag.urgent && flag.value) return null;
 
-    if (flag.current === null && flag.type !== "boolean") {
+    if (flag.value === null && flag.type !== "boolean") {
       if (flag.required) {
         error = setError(
           error,
           new ParserError(ErrorKind.MISSING_REQUIRED, flag.long),
         );
       } else if (flag.default !== undefined) {
-        flag.current = flag.default;
+        flag.value = flag.default;
       }
     }
   }
@@ -440,7 +440,7 @@ function boolean(long, description, options = {}) {
     long,
     description,
     type: "boolean",
-    current: null,
+    value: null,
   };
 
   return /** @type {*} */ (flag);
@@ -461,7 +461,7 @@ function string(long, description, options = {}) {
     ...options,
     long,
     description,
-    current: null,
+    value: null,
     type: "string",
   };
 
@@ -483,7 +483,7 @@ function number(long, description, options = {}) {
     ...options,
     long,
     description,
-    current: null,
+    value: null,
     type: "number",
   };
 

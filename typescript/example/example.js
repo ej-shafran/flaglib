@@ -66,13 +66,13 @@ if (error !== null) {
   process.exit(1);
 }
 
-if (help.current) {
+if (help.value) {
   console.log(`usage: ./${scriptName} [<options>] [--] <name>...\n`);
   console.log(flag.info(flags, { prefix: 4 }));
   process.exit(0);
 }
 
-if (version.current) {
+if (version.value) {
   console.log(`${scriptName} - v1.0.0`);
   process.exit(0);
 }
@@ -88,12 +88,12 @@ if (args.length < 1) {
  **/
 const yellow = (str) => {
   // handles `--no-color`
-  if (color.current === "") color.current = "never";
+  if (color.value === "") color.value = "never";
 
-  if (color.current === "never") return String(str);
+  if (color.value === "never") return String(str);
 
   const colored = `\x1b[33m${str}\x1b[0m`;
-  if (color.current === "always") return colored;
+  if (color.value === "always") return colored;
 
   return process.stdin.isTTY ? colored : String(str);
 };
@@ -102,7 +102,7 @@ const yellow = (str) => {
  * @param {string} msg
  **/
 function debug(msg) {
-  if (verbose.current) {
+  if (verbose.value) {
     console.log(`[ ${yellow("DEBUG")} ] ${msg}`);
   }
 }
@@ -110,25 +110,25 @@ function debug(msg) {
 const name = args.join(" ");
 
 debug("configuration:");
-debug(`\tcount = ${flag.stringify(count.current)}`);
-debug(`\tcolor = ${flag.stringify(color.current)}`);
-debug(`\tprefix = ${flag.stringify(prefix.current)}`);
-debug(`\tage = ${flag.stringify(age.current)}`);
-debug(`\tlast-name = ${flag.stringify(lastName.current)}`);
+debug(`\tcount = ${flag.stringify(count.value)}`);
+debug(`\tcolor = ${flag.stringify(color.value)}`);
+debug(`\tprefix = ${flag.stringify(prefix.value)}`);
+debug(`\tage = ${flag.stringify(age.value)}`);
+debug(`\tlast-name = ${flag.stringify(lastName.value)}`);
 debug(`\tname = ${flag.stringify(name)}`)
 
 debug("starting loop...");
-for (let i = 0; i < count.current; i++) {
+for (let i = 0; i < count.value; i++) {
   debug(`i = ${i}`);
 
-  let line = `${name} ${lastName.current}`;
+  let line = `${name} ${lastName.value}`;
   line = yellow(line);
-  if (prefix.current) {
-    line = `${prefix.current}, ${line}!`;
+  if (prefix.value) {
+    line = `${prefix.value}, ${line}!`;
   } else {
     line += " -";
   }
-  line += ` You are ${yellow(age.current)} years old!`;
+  line += ` You are ${yellow(age.value)} years old!`;
 
   console.log(line);
 }
