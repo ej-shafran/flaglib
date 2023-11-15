@@ -110,12 +110,12 @@ function debug(msg) {
 const name = args.join(" ");
 
 debug("configuration:");
-debug(`\tcount = ${flag.stringify(count.value)}`);
-debug(`\tcolor = ${flag.stringify(color.value)}`);
-debug(`\tprefix = ${flag.stringify(prefix.value)}`);
-debug(`\tage = ${flag.stringify(age.value)}`);
-debug(`\tlast-name = ${flag.stringify(lastName.value)}`);
-debug(`\tname = ${flag.stringify(name)}`)
+debug(`\tcount = ${flag.stringify(count)}`);
+debug(`\tcolor = ${flag.stringify(color)}`);
+debug(`\tprefix = ${flag.stringify(prefix)}`);
+debug(`\tage = ${flag.stringify(age)}`);
+debug(`\tlast-name = ${flag.stringify(lastName)}`);
+debug(`\tname = ${flag.stringify(name)}`);
 
 debug("starting loop...");
 for (let i = 0; i < count.value; i++) {
